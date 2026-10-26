@@ -17,6 +17,7 @@ from .config import ROOT_DIR, settings
 from .database import init_db
 from .photos import optimize_stored_photos
 from .routers import cocktails, me, orders
+from .tunnel import run_tunnel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,14 +32,26 @@ async def lifespan(app: FastAPI):
         logger.exception("Could not shrink stored cocktail photos")
     active_bot, dispatcher = create_bot()
     polling_task: asyncio.Task | None = None
+    tunnel_task: asyncio.Task | None = None
     if active_bot and dispatcher:
+        polling_task = asyncio.create_task(dispatcher.start_polling(active_bot))
+        logger.info("aiogram polling started")
+    if settings.auto_tunnel:
+        tunnel_task = asyncio.create_task(run_tunnel(active_bot))
+    elif active_bot:
         try:
             await setup_menu_button(active_bot)
         except Exception:
             logger.exception("Could not set Telegram menu button")
-        polling_task = asyncio.create_task(dispatcher.start_polling(active_bot))
-        logger.info("aiogram polling started")
     yield
+    if tunnel_task:
+        tunnel_task.cancel()
+        try:
+            await tunnel_task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception("Error while stopping the public tunnel")
     if polling_task:
         polling_task.cancel()
         try:

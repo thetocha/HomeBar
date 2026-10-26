@@ -230,19 +230,25 @@ function renderForm(panel: HTMLElement, drink: Cocktail | null, onSaved: () => v
   `;
 
   const form = panel.querySelector("#drink-form") as HTMLFormElement;
+  const photoInput = form.querySelector<HTMLInputElement>('[name="photo"]')!;
+  let pendingPhoto: Promise<File | null> = Promise.resolve(null);
+  photoInput.addEventListener("change", () => {
+    const next = photoInput.files?.[0];
+    pendingPhoto = next ? preparePhoto(next) : Promise.resolve(null);
+  });
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(form);
     const available = form.querySelector<HTMLInputElement>('[name="available"]')?.checked ?? true;
     data.set("available", available ? "true" : "false");
-    const file = form.querySelector<HTMLInputElement>('[name="photo"]')?.files?.[0];
+    const file = photoInput.files?.[0];
     const submit = form.querySelector("button[type=submit]") as HTMLButtonElement;
     const label = submit.textContent;
     submit.disabled = true;
     submit.textContent = "Saving…";
     try {
       if (file) {
-        const prepared = await preparePhoto(file);
+        const prepared = (await pendingPhoto) ?? (await preparePhoto(file));
         data.set("photo", prepared, prepared.name);
       } else {
         data.delete("photo");

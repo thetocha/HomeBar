@@ -68,12 +68,25 @@ def compress_image(content: bytes) -> bytes:
         with Image.open(BytesIO(content)) as opened:
             img = ImageOps.exif_transpose(opened)
             img = _flatten(img)
-            img.thumbnail((MAX_EDGE, MAX_EDGE), Image.Resampling.LANCZOS)
+            img.thumbnail((MAX_EDGE, MAX_EDGE), Image.Resampling.BILINEAR)
             out = BytesIO()
-            img.save(out, format="JPEG", quality=JPEG_QUALITY, progressive=True)
+            img.save(out, format="JPEG", quality=JPEG_QUALITY)
             return out.getvalue()
     except Exception as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Photo could not be read") from exc
+
+
+def _jpeg_is_ready(content: bytes) -> bool:
+    if len(content) > OPTIMIZE_BYTES or not content.startswith(b"\xff\xd8\xff"):
+        return False
+    try:
+        with Image.open(BytesIO(content)) as img:
+            if img.format != "JPEG":
+                return False
+            width, height = img.size
+    except Exception:
+        return False
+    return max(width, height) <= MAX_EDGE
 
 
 def _needs_optimize(path: Path) -> bool:
@@ -148,7 +161,11 @@ async def save_photo(upload: UploadFile) -> str:
     if len(content) > MAX_BYTES:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Photo is larger than 5 MB")
     _extension_for(content, upload.content_type)
-    optimized = await asyncio.to_thread(compress_image, content)
+    # The browser already sends a small JPEG. Re-encoding it is what made Save wait.
+    if _jpeg_is_ready(content):
+        optimized = content
+    else:
+        optimized = await asyncio.to_thread(compress_image, content)
     filename = f"{uuid.uuid4().hex}.jpg"
     dest = settings.upload_dir / filename
     await asyncio.to_thread(dest.write_bytes, optimized)

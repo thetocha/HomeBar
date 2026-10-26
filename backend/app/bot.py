@@ -73,6 +73,7 @@ async def setup_menu_button(active_bot: Bot) -> None:
             web_app=WebAppInfo(url=settings.webapp_url),
         )
     )
+    logger.info("Telegram menu button set to %s", settings.webapp_url)
 
 
 def build_order_notify_text(
