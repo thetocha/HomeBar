@@ -54,7 +54,7 @@ Restart the backend after changing `WEBAPP_URL` so the menu button updates.
 
 Every API call sends Telegram `initData`. The server checks the HMAC (secret derived from `BOT_TOKEN`) and reads `user.id`. If it equals `BARTENDER_TELEGRAM_ID`, the user is the bartender.
 
-Locally, omit initData and set `DEV_TELEGRAM_USER_ID`. Do not enable that bypass on a public host.
+Locally, omit initData and set `DEV_TELEGRAM_USER_ID`, then open `http://127.0.0.1:5173` or `http://127.0.0.1:8000`. The public tunnel hostname still requires Telegram `initData`.
 
 ## Guest vs bartender
 

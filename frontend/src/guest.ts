@@ -15,20 +15,27 @@ export function stopGuestTimer(): void {
   }
 }
 
+function savedName(): string {
+  return localStorage.getItem(NAME_KEY)?.trim() ?? "";
+}
+
 export function renderGuest(root: HTMLElement, me: Me): void {
   stopGuestTimer();
+  if (!savedName()) {
+    renderNamePrompt(root, me, () => renderGuest(root, me));
+    return;
+  }
 
   root.innerHTML = `
     <main class="page-frame">
       <header class="text-center">
-        <p class="kicker">Tonight at the house</p>
-        <h1 class="mt-1 font-serif text-[2.6rem] italic leading-none">Djinn Antonic</h1>
+        <h1 class="font-serif text-[2.6rem] italic leading-none">Djinn Antonic</h1>
         <p class="flourish my-4">✦</p>
-        <p class="text-sm italic text-ink/70">Order what you fancy.</p>
+        <p class="text-sm italic text-ink/70">Закажите, что душа пожелает.</p>
       </header>
       <section id="catalog" class="mt-8 grid grid-cols-2 gap-5"></section>
       <section class="mt-10">
-        <h2 class="text-center font-serif text-2xl italic">Your orders</h2>
+        <h2 class="text-center font-serif text-2xl italic">Ваши заказы</h2>
         <p class="flourish my-3">✦</p>
         <div id="orders" class="space-y-3"></div>
       </section>
@@ -41,19 +48,15 @@ export function renderGuest(root: HTMLElement, me: Me): void {
   const sheetEl = root.querySelector("#sheet") as HTMLElement;
   let ordersSnapshot = "";
 
-  function ticketName(): string {
-    return localStorage.getItem(NAME_KEY)?.trim() || me.suggested_display_name;
-  }
-
   async function load(): Promise<void> {
     try {
       const [cocktails, orders] = await Promise.all([api.cocktails(), api.orders()]);
-      renderCatalog(catalogEl, cocktails, ticketName, sheetEl, (orders) => {
+      renderCatalog(catalogEl, cocktails, sheetEl, (orders) => {
         ordersSnapshot = renderOrders(ordersEl, orders, "");
       });
       ordersSnapshot = renderOrders(ordersEl, orders, ordersSnapshot);
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Could not load menu", "err");
+      toast(err instanceof Error ? err.message : "Не удалось загрузить меню", "err");
     }
   }
 
@@ -68,23 +71,57 @@ export function renderGuest(root: HTMLElement, me: Me): void {
   }, 4000);
 }
 
+function renderNamePrompt(root: HTMLElement, me: Me, onSaved: () => void): void {
+  const preset = me.suggested_display_name.trim();
+  root.innerHTML = `
+    <main class="page-frame">
+      <header class="text-center">
+        <h1 class="font-serif text-[2.6rem] italic leading-none">Djinn Antonic</h1>
+        <p class="flourish my-4">✦</p>
+        <p class="text-sm italic text-ink/70">Как к вам обращаться?</p>
+      </header>
+      <label class="mt-8 block text-xs uppercase tracking-[0.2em] text-gold" for="nickname">Имя на чеке</label>
+      <input id="nickname" class="field" value="${escapeHtml(preset)}" maxlength="80" autocomplete="nickname" />
+      <p class="mt-3 text-center text-xs text-ink/55">Один раз — и все следующие заказы пойдут на это имя.</p>
+      <button id="save-name" type="button" class="stamp-btn mt-5 w-full">Продолжить</button>
+    </main>
+  `;
+
+  const input = root.querySelector("#nickname") as HTMLInputElement;
+  const save = async (): Promise<void> => {
+    const name = input.value.trim();
+    if (!name) {
+      toast("Введите имя, чтобы бармен знал, для кого заказ", "err");
+      input.focus();
+      return;
+    }
+    localStorage.setItem(NAME_KEY, name);
+    onSaved();
+  };
+  root.querySelector("#save-name")?.addEventListener("click", () => {
+    void save();
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") void save();
+  });
+}
+
 function renderCatalog(
   catalogEl: HTMLElement,
   cocktails: Cocktail[],
-  ticketName: () => string,
   sheetEl: HTMLElement,
   onOrdered: (orders: Order[]) => void,
 ): void {
   if (!cocktails.length) {
     catalogEl.className = "mt-8";
-    catalogEl.innerHTML = `<p class="text-center text-ink/60">The bartender is still writing tonight’s menu.</p>`;
+    catalogEl.innerHTML = `<p class="text-center text-ink/60">Бармен ещё составляет вечернее меню.</p>`;
     return;
   }
   catalogEl.innerHTML = cocktails
     .map((drink, index) => {
       const photo = drink.photo_url
         ? photoImg(drink.photo_url, drink.name, "aspect-square w-full object-cover")
-        : `<div class="flex aspect-square items-center justify-center bg-[#efe6d2] font-serif text-ink/40">No photo</div>`;
+        : `<div class="flex aspect-square items-center justify-center bg-[#efe6d2] font-serif text-ink/40">Нет фото</div>`;
       return `
         <button type="button" data-id="${drink.id}" class="rotate-card polaroid text-left ${index % 2 ? "mt-3" : ""}">
           ${photo}
@@ -100,7 +137,7 @@ function renderCatalog(
       const id = Number(btn.dataset.id);
       const drink = cocktails.find((item) => item.id === id);
       if (drink) {
-        openSheet(sheetEl, drink, ticketName(), onOrdered);
+        openSheet(sheetEl, drink, onOrdered);
       }
     });
   });
@@ -110,7 +147,7 @@ function renderOrders(ordersEl: HTMLElement, orders: Order[], snapshot: string):
   const next = JSON.stringify(orders);
   if (next === snapshot) return snapshot;
   if (!orders.length) {
-    ordersEl.innerHTML = `<p class="text-sm text-ink/55">Nothing ordered yet.</p>`;
+    ordersEl.innerHTML = `<p class="text-sm text-ink/55">Пока ничего не заказано.</p>`;
     return next;
   }
   ordersEl.innerHTML = orders
@@ -121,7 +158,7 @@ function renderOrders(ordersEl: HTMLElement, orders: Order[], snapshot: string):
             <h3 class="font-serif text-lg italic">${escapeHtml(order.cocktail_name)}</h3>
             <span class="seal seal-out">${STATUS_LABEL[order.status]}</span>
           </div>
-          <p class="mt-1 text-xs text-ink/55">${formatTime(order.created_at)} · for ${escapeHtml(order.display_name)}</p>
+          <p class="mt-1 text-xs text-ink/55">${formatTime(order.created_at)} · для ${escapeHtml(order.display_name)}</p>
         </article>
       `,
     )
@@ -132,7 +169,6 @@ function renderOrders(ordersEl: HTMLElement, orders: Order[], snapshot: string):
 function openSheet(
   sheetEl: HTMLElement,
   drink: Cocktail,
-  initialName: string,
   onOrdered: (orders: Order[]) => void,
 ): void {
   const photo = drink.photo_url
@@ -144,10 +180,8 @@ function openSheet(
       <div class="mx-auto mb-3 h-1 w-12 rounded-full bg-rule"></div>
       ${photo ? `<div class="polaroid mx-auto max-w-xs">${photo}</div>` : ""}
       <h2 class="mt-4 text-center font-serif text-3xl italic">${escapeHtml(drink.name)}</h2>
-      <p class="mt-2 whitespace-pre-wrap text-center text-sm leading-relaxed text-ink/75">${escapeHtml(drink.description || "No tasting notes.")}</p>
-      <label class="mt-5 block text-xs uppercase tracking-[0.2em] text-gold">Your name on the ticket</label>
-      <input id="display-name" class="field" value="${escapeHtml(initialName)}" maxlength="80" />
-      <button id="order-btn" type="button" class="stamp-btn mt-4 w-full">Order</button>
+      <p class="mt-2 whitespace-pre-wrap text-center text-sm leading-relaxed text-ink/75">${escapeHtml(drink.description || "Без дегустационных заметок.")}</p>
+      <button id="order-btn" type="button" class="stamp-btn mt-5 w-full">Заказать</button>
     </div>
   `;
 
@@ -156,24 +190,22 @@ function openSheet(
   });
 
   sheetEl.querySelector("#order-btn")?.addEventListener("click", async () => {
-    const input = sheetEl.querySelector("#display-name") as HTMLInputElement;
-    const name = input.value.trim();
+    const name = savedName();
     if (!name) {
-      toast("Add a name so the bartender knows who it's for", "err");
+      toast("Сначала укажите имя", "err");
       return;
     }
     const button = sheetEl.querySelector("#order-btn") as HTMLButtonElement;
     button.disabled = true;
     try {
-      localStorage.setItem(NAME_KEY, name);
       await api.createOrder(drink.id, name);
       haptic("success");
-      toast("Ticket in. The bartender has it.");
+      toast("Заказ принят. Бармен уже видит его.");
       sheetEl.innerHTML = "";
       onOrdered(await api.orders());
     } catch (err) {
       haptic("error");
-      toast(err instanceof Error ? err.message : "Could not order", "err");
+      toast(err instanceof Error ? err.message : "Не удалось оформить заказ", "err");
       button.disabled = false;
     }
   });

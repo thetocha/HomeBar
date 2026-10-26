@@ -31,10 +31,10 @@ export interface Order {
 }
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
-  pending: "Queued",
-  accepted: "Mixing",
-  ready: "Ready",
-  done: "Served",
+  pending: "В очереди",
+  accepted: "Готовится",
+  ready: "Готов",
+  done: "Подан",
 };
 
 export const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -44,7 +44,7 @@ export const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
 };
 
 export const NEXT_LABEL: Partial<Record<OrderStatus, string>> = {
-  pending: "Accept",
-  accepted: "Mark ready",
-  ready: "Served",
+  pending: "Принять",
+  accepted: "Готово",
+  ready: "Подано",
 };

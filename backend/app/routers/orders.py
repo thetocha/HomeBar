@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..bot import notify_bartender
+from ..bot import notify_bartender, notify_guest_status
 from ..database import get_db
-from ..models import NEXT_STATUS, ORDER_STATUSES, Cocktail, Order
+from ..models import NEXT_STATUS, ORDER_STATUSES, STATUS_LABEL_RU, Cocktail, Order
 from ..schemas import OrderCreate, OrderOut, OrderStatusPatch
 from ..telegram_auth import TelegramUser, get_current_user, require_bartender
 
@@ -29,10 +29,10 @@ async def create_order(
 ) -> Order:
     cocktail = db.get(Cocktail, payload.cocktail_id, with_for_update=True)
     if cocktail is None or not cocktail.available:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "That drink is not available")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Этого напитка нет в меню")
     display_name = payload.display_name.strip()
     if not display_name:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Display name is required")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Нужно имя")
     order = Order(
         cocktail_id=cocktail.id,
         cocktail_name=cocktail.name,
@@ -46,7 +46,7 @@ async def create_order(
     db.refresh(cocktail)
     if not cocktail.available:
         db.rollback()
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "That drink is not available")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Этого напитка нет в меню")
     db.commit()
     db.refresh(order)
     await notify_bartender(
@@ -55,11 +55,17 @@ async def create_order(
         guest_username=order.guest_username,
         order_id=order.id,
     )
+    await notify_guest_status(
+        chat_id=order.guest_telegram_id,
+        order_id=order.id,
+        cocktail_name=order.cocktail_name,
+        status=order.status,
+    )
     return order
 
 
 @router.patch("/{order_id}/status", response_model=OrderOut)
-def patch_status(
+async def patch_status(
     order_id: int,
     payload: OrderStatusPatch,
     _: TelegramUser = Depends(require_bartender),
@@ -67,17 +73,27 @@ def patch_status(
 ) -> Order:
     order = db.get(Order, order_id)
     if order is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Заказ не найден")
     next_status = payload.status.strip()
     if next_status not in ORDER_STATUSES:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown status")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Неизвестный статус")
+    if next_status == order.status:
+        return order
     expected = NEXT_STATUS.get(order.status)
     if next_status != expected:
+        current = STATUS_LABEL_RU.get(order.status, order.status)
+        target = STATUS_LABEL_RU.get(next_status, next_status)
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            f"Cannot move from {order.status} to {next_status}",
+            f"Нельзя сменить статус с «{current}» на «{target}»",
         )
     order.status = next_status
     db.commit()
     db.refresh(order)
+    await notify_guest_status(
+        chat_id=order.guest_telegram_id,
+        order_id=order.id,
+        cocktail_name=order.cocktail_name,
+        status=order.status,
+    )
     return order

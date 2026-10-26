@@ -11,6 +11,12 @@ NEXT_STATUS = {
     "accepted": "ready",
     "ready": "done",
 }
+STATUS_LABEL_RU = {
+    "pending": "В очереди",
+    "accepted": "Готовится",
+    "ready": "Готов",
+    "done": "Подан",
+}
 
 
 class Cocktail(Base):

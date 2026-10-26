@@ -67,11 +67,10 @@ app = FastAPI(title="Djinn Antonic", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
+    # Vite tags module scripts with crossorigin, so Telegram's WebView will not
+    # run them unless ACAO matches the public tunnel origin (which rotates).
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -134,7 +133,7 @@ def _safe_frontend_file(full_path: str) -> Path | None:
 def spa(full_path: str):
     index = frontend_dist / "index.html"
     if not index.exists():
-        return {"detail": "Frontend is not built. Run npm run build in frontend/."}
+        return {"detail": "Интерфейс не собран. Запустите npm run build в папке frontend."}
     if full_path:
         candidate = _safe_frontend_file(full_path)
         if candidate is not None:

@@ -32,7 +32,11 @@ export function bootTelegram(): void {
 }
 
 export function getInitData(): string {
-  return window.Telegram?.WebApp?.initData ?? "";
+  const fromSdk = window.Telegram?.WebApp?.initData ?? "";
+  if (fromSdk) return fromSdk;
+  const hash = window.location.hash.replace(/^#/, "");
+  if (!hash) return "";
+  return new URLSearchParams(hash).get("tgWebAppData") ?? "";
 }
 
 export function haptic(kind: "success" | "error" | "light" = "light"): void {

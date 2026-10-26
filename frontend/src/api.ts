@@ -39,7 +39,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
         ? detail
         : Array.isArray(detail)
           ? detail.map((item: { msg?: string }) => item.msg).join(", ")
-          : `Request failed (${response.status})`;
+          : `Запрос не выполнен (${response.status})`;
     throw new Error(message);
   }
   return (text ? JSON.parse(text) : null) as T;

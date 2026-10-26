@@ -16,16 +16,16 @@ DESCRIPTION_MAX = 4000
 def _validated_name(name: str) -> str:
     name = name.strip()
     if not name:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name is required")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Нужно название")
     if len(name) > NAME_MAX:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name is too long")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Слишком длинное название")
     return name
 
 
 def _validated_description(description: str) -> str:
     description = description.strip()
     if len(description) > DESCRIPTION_MAX:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Description is too long")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Слишком длинное описание")
     return description
 
 
@@ -59,9 +59,9 @@ def get_cocktail(
 ) -> CocktailOut:
     cocktail = db.get(Cocktail, cocktail_id)
     if cocktail is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cocktail not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Напиток не найден")
     if not cocktail.available and not user.is_bartender:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cocktail not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Напиток не найден")
     return to_out(cocktail)
 
 
@@ -101,7 +101,7 @@ async def update_cocktail(
 ) -> CocktailOut:
     cocktail = db.get(Cocktail, cocktail_id)
     if cocktail is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cocktail not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Напиток не найден")
     if name is not None:
         cocktail.name = _validated_name(name)
     if description is not None:
@@ -125,7 +125,7 @@ def delete_cocktail(
 ) -> None:
     cocktail = db.get(Cocktail, cocktail_id)
     if cocktail is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cocktail not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Напиток не найден")
     delete_photo(cocktail.photo_filename)
     db.delete(cocktail)
     db.commit()

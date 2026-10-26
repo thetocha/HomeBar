@@ -42,14 +42,14 @@ def cocktail_photo_url(filename: str | None) -> str | None:
 def _extension_for(content: bytes, content_type: str | None) -> str:
     if content_type in ALLOWED_TYPES:
         if content_type == "image/webp" and not content.startswith(b"RIFF"):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Photo does not look like a valid image")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Файл не похож на изображение")
         return ALLOWED_TYPES[content_type]
     for prefix, ext in MAGIC:
         if content.startswith(prefix):
             if ext == ".webp" and b"WEBP" not in content[:16]:
                 continue
             return ext
-    raise HTTPException(status.HTTP_400_BAD_REQUEST, "Photo must be JPEG, PNG, WebP, or GIF")
+    raise HTTPException(status.HTTP_400_BAD_REQUEST, "Нужен файл JPEG, PNG, WebP или GIF")
 
 
 def _flatten(img: Image.Image) -> Image.Image:
@@ -73,7 +73,7 @@ def compress_image(content: bytes) -> bytes:
             img.save(out, format="JPEG", quality=JPEG_QUALITY)
             return out.getvalue()
     except Exception as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Photo could not be read") from exc
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Не удалось прочитать фото") from exc
 
 
 def _jpeg_is_ready(content: bytes) -> bool:
@@ -157,9 +157,9 @@ def _delete_orphan_uploads(db) -> None:
 async def save_photo(upload: UploadFile) -> str:
     content = await upload.read()
     if not content:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Empty photo")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пустое фото")
     if len(content) > MAX_BYTES:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Photo is larger than 5 MB")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Фото больше 5 МБ")
     _extension_for(content, upload.content_type)
     # The browser already sends a small JPEG. Re-encoding it is what made Save wait.
     if _jpeg_is_ready(content):

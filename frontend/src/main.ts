@@ -16,10 +16,10 @@ void boot(app);
 async function boot(root: HTMLElement): Promise<void> {
   root.innerHTML = `
     <main class="page-frame px-6 py-16 text-center">
-      <p class="kicker">Tonight</p>
+      <p class="kicker">Сегодня</p>
       <h1 class="mt-1 font-serif text-4xl italic">Djinn Antonic</h1>
       <p class="flourish my-4">✦</p>
-      <p class="text-sm text-ink/60">Opening the book…</p>
+      <p class="text-sm text-ink/60">Открываем книгу…</p>
     </main>
   `;
   try {
@@ -29,8 +29,8 @@ async function boot(root: HTMLElement): Promise<void> {
     root.innerHTML = `
       <main class="page-frame px-6 py-16 text-center">
         <h1 class="font-serif text-3xl italic">Djinn Antonic</h1>
-        <p class="mt-4 text-sm text-stamp">${err instanceof Error ? err.message : "Could not start"}</p>
-        <p class="mt-3 text-sm text-ink/60">Open this Mini App from Telegram, or set DEV_TELEGRAM_USER_ID for local browsing.</p>
+        <p class="mt-4 text-sm text-stamp">${err instanceof Error ? err.message : "Не удалось начать"}</p>
+        <p class="mt-3 text-sm text-ink/60">Откройте это приложение из Telegram или задайте DEV_TELEGRAM_USER_ID для локального просмотра.</p>
       </main>
     `;
   }
@@ -61,11 +61,11 @@ function devBar(me: Me, onSwitch: (id: number) => void): HTMLElement {
   bar.className = "border-b border-gold/50 bg-[#f3e6c8] px-3 py-2 text-center text-xs tracking-wide";
   const bartenderId = me.bartender_telegram_id || 1;
   bar.innerHTML = `
-    Local preview · viewing as <b>${me.is_bartender ? "bartender" : "guest"}</b>
+    Локальный просмотр · сейчас вы <b>${me.is_bartender ? "бармен" : "гость"}</b>
     <span class="mx-2">·</span>
-    <button type="button" data-as="bartender" class="underline">Bartender</button>
+    <button type="button" data-as="bartender" class="underline">Бармен</button>
     <span class="mx-1">/</span>
-    <button type="button" data-as="guest" class="underline">Guest</button>
+    <button type="button" data-as="guest" class="underline">Гость</button>
   `;
   bar.querySelector("[data-as=bartender]")?.addEventListener("click", () => {
     onSwitch(bartenderId || 1);

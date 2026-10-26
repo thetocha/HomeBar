@@ -25,14 +25,14 @@ export function renderBartender(root: HTMLElement): void {
     root.innerHTML = `
       <main class="page-frame">
         <header class="text-center">
-          <p class="kicker">Service</p>
+          <p class="kicker">Смена</p>
           <h1 class="mt-1 font-serif text-4xl italic">Djinn Antonic</h1>
           <p class="flourish my-4">✦</p>
         </header>
         <nav class="mb-6 grid grid-cols-3 overflow-hidden border border-gold">
-          ${tabButton("orders", "Orders", tab)}
-          ${tabButton("menu", "Menu", tab)}
-          ${tabButton("new", editing ? "Edit drink" : "New drink", tab)}
+          ${tabButton("orders", "Заказы", tab)}
+          ${tabButton("menu", "Меню", tab)}
+          ${tabButton("new", editing ? "Правка" : "Новый", tab)}
         </nav>
         <section id="panel"></section>
       </main>
@@ -70,11 +70,11 @@ function tabButton(id: Tab, label: string, current: Tab): string {
 }
 
 async function renderMenu(panel: HTMLElement, onEdit: (drink: Cocktail) => void): Promise<void> {
-  panel.innerHTML = `<p class="text-sm text-ink/55">Loading cards…</p>`;
+  panel.innerHTML = `<p class="text-sm text-ink/55">Загрузка карточек…</p>`;
   try {
     const drinks = await api.cocktails();
     if (!drinks.length) {
-      panel.innerHTML = `<p class="text-sm text-ink/55">No cards yet. Add a drink.</p>`;
+      panel.innerHTML = `<p class="text-sm text-ink/55">Карточек пока нет. Добавьте напиток.</p>`;
       return;
     }
     panel.innerHTML = `<div class="space-y-4">${drinks.map(menuCard).join("")}</div>`;
@@ -96,31 +96,31 @@ async function renderMenu(panel: HTMLElement, onEdit: (drink: Cocktail) => void)
           haptic("light");
           await renderMenu(panel, onEdit);
         } catch (err) {
-          toast(err instanceof Error ? err.message : "Could not update", "err");
+          toast(err instanceof Error ? err.message : "Не удалось обновить", "err");
         }
       });
     });
     panel.querySelectorAll<HTMLButtonElement>("[data-del]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        if (!confirm("Take this card out of the book?")) return;
+        if (!confirm("Убрать эту карточку из книги?")) return;
         try {
           await api.deleteCocktail(Number(btn.dataset.del));
-          toast("Card removed");
+          toast("Карточка убрана");
           await renderMenu(panel, onEdit);
         } catch (err) {
-          toast(err instanceof Error ? err.message : "Could not delete", "err");
+          toast(err instanceof Error ? err.message : "Не удалось удалить", "err");
         }
       });
     });
   } catch (err) {
-    panel.innerHTML = `<p class="text-stamp">${escapeHtml(err instanceof Error ? err.message : "Error")}</p>`;
+    panel.innerHTML = `<p class="text-stamp">${escapeHtml(err instanceof Error ? err.message : "Ошибка")}</p>`;
   }
 }
 
 function menuCard(drink: Cocktail): string {
   const photo = drink.photo_url
     ? photoImg(drink.photo_url, "", "h-20 w-20 object-cover")
-    : `<div class="flex h-20 w-20 items-center justify-center bg-[#efe6d2] text-[10px] uppercase tracking-widest text-ink/40">No photo</div>`;
+    : `<div class="flex h-20 w-20 items-center justify-center bg-[#efe6d2] text-[10px] uppercase tracking-widest text-ink/40">Нет фото</div>`;
   return `
     <article class="ticket flex gap-3 p-3">
       <div class="polaroid !p-1 !pb-3">${photo}</div>
@@ -128,16 +128,16 @@ function menuCard(drink: Cocktail): string {
         <div class="flex items-baseline justify-between gap-2">
           <h3 class="truncate font-serif text-xl italic">${escapeHtml(drink.name)}</h3>
           <span class="seal ${drink.available ? "seal-on" : "seal-out"}">${
-            drink.available ? "On menu" : "Sold out"
+            drink.available ? "В меню" : "Снят"
           }</span>
         </div>
         <p class="mt-1 line-clamp-2 text-xs text-ink/60">${escapeHtml(drink.description || "")}</p>
         <div class="mt-3 flex flex-wrap gap-2">
           <button type="button" data-avail="${drink.id}" class="ghost-btn !px-2 !py-1 !text-[10px]">${
-            drink.available ? "Mark sold out" : "Put back on"
+            drink.available ? "Снять с меню" : "Вернуть"
           }</button>
-          <button type="button" data-edit="${drink.id}" class="ghost-btn !px-2 !py-1 !text-[10px]">Edit</button>
-          <button type="button" data-del="${drink.id}" class="ghost-btn !px-2 !py-1 !text-[10px]">Delete</button>
+          <button type="button" data-edit="${drink.id}" class="ghost-btn !px-2 !py-1 !text-[10px]">Изменить</button>
+          <button type="button" data-del="${drink.id}" class="ghost-btn !px-2 !py-1 !text-[10px]">Удалить</button>
         </div>
       </div>
     </article>
@@ -153,7 +153,7 @@ async function renderOrders(panel: HTMLElement): Promise<void> {
       if (next === snapshot) return;
       snapshot = next;
       if (!orders.length) {
-        panel.innerHTML = `<p class="text-sm text-ink/55">No tickets yet.</p>`;
+        panel.innerHTML = `<p class="text-sm text-ink/55">Заказов пока нет.</p>`;
         return;
       }
       panel.innerHTML = `<div class="space-y-3">${orders.map(orderCard).join("")}</div>`;
@@ -166,12 +166,12 @@ async function renderOrders(panel: HTMLElement): Promise<void> {
             haptic("success");
             await draw();
           } catch (err) {
-            toast(err instanceof Error ? err.message : "Could not update order", "err");
+            toast(err instanceof Error ? err.message : "Не удалось обновить заказ", "err");
           }
         });
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Error";
+      const message = err instanceof Error ? err.message : "Ошибка";
       if (snapshot) {
         toast(message, "err");
       } else {
@@ -191,7 +191,7 @@ function orderCard(order: Order): string {
   const action = next
     ? `<button type="button" data-advance="${order.id}" data-next="${next}" class="stamp-btn !px-3 !py-1 !text-[10px]">${NEXT_LABEL[order.status]}</button>`
     : "";
-  const handle = order.guest_username ? `@${order.guest_username}` : "no username";
+  const handle = order.guest_username ? `@${order.guest_username}` : "нет юзернейма";
   return `
     <article class="ticket px-3 py-3">
       <div class="flex items-start justify-between gap-3">
@@ -212,19 +212,19 @@ function renderForm(panel: HTMLElement, drink: Cocktail | null, onSaved: () => v
   panel.innerHTML = `
     <form id="drink-form" class="space-y-4">
       <label class="block">
-        <span class="text-xs uppercase tracking-[0.18em] text-gold">Name</span>
+        <span class="text-xs uppercase tracking-[0.18em] text-gold">Название</span>
         <input name="name" required maxlength="120" class="field" value="${escapeHtml(drink?.name ?? "")}" />
       </label>
       <label class="block">
-        <span class="text-xs uppercase tracking-[0.18em] text-gold">Description</span>
+        <span class="text-xs uppercase tracking-[0.18em] text-gold">Описание</span>
         <textarea name="description" rows="4" maxlength="4000" class="field">${escapeHtml(drink?.description ?? "")}</textarea>
       </label>
       <label class="flex items-center gap-2 text-sm">
         <input type="checkbox" name="available" ${drink?.available !== false ? "checked" : ""} />
-        On the menu
+        В меню
       </label>
       <label class="block">
-        <span class="text-xs uppercase tracking-[0.18em] text-gold">Polaroid</span>
+        <span class="text-xs uppercase tracking-[0.18em] text-gold">Полароид</span>
         <input name="photo" type="file" accept="image/*" class="mt-2 block w-full text-sm" />
       </label>
       ${
@@ -232,7 +232,7 @@ function renderForm(panel: HTMLElement, drink: Cocktail | null, onSaved: () => v
           ? photoImg(drink.photo_url, "", "h-32 w-32 object-cover shadow-polaroid", false)
           : ""
       }
-      <button type="submit" class="stamp-btn w-full">${isEdit ? "Save card" : "Add to the book"}</button>
+      <button type="submit" class="stamp-btn w-full">${isEdit ? "Сохранить карточку" : "Добавить в меню"}</button>
     </form>
   `;
 
@@ -252,7 +252,7 @@ function renderForm(panel: HTMLElement, drink: Cocktail | null, onSaved: () => v
     const submit = form.querySelector("button[type=submit]") as HTMLButtonElement;
     const label = submit.textContent;
     submit.disabled = true;
-    submit.textContent = "Saving…";
+    submit.textContent = "Сохранение…";
     try {
       if (file) {
         const prepared = (await pendingPhoto) ?? (await preparePhoto(file));
@@ -263,11 +263,11 @@ function renderForm(panel: HTMLElement, drink: Cocktail | null, onSaved: () => v
       if (drink) await api.updateCocktail(drink.id, data);
       else await api.createCocktail(data);
       haptic("success");
-      toast(isEdit ? "Card updated" : "Drink added");
+      toast(isEdit ? "Карточка обновлена" : "Напиток добавлен");
       onSaved();
     } catch (err) {
       haptic("error");
-      toast(err instanceof Error ? err.message : "Could not save", "err");
+      toast(err instanceof Error ? err.message : "Не удалось сохранить", "err");
       submit.disabled = false;
       submit.textContent = label;
     }
