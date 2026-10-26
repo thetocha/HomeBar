@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from html import escape
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -86,8 +87,8 @@ def build_order_notify_text(
     handle = f"@{guest_username}" if guest_username else "no username"
     return (
         f"<b>New order #{order_id}</b>\n"
-        f"Drink: {cocktail_name}\n"
-        f"Guest: {display_name} ({handle})"
+        f"Drink: {escape(cocktail_name)}\n"
+        f"Guest: {escape(display_name)} ({escape(handle)})"
     )
 
 

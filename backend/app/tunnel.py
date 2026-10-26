@@ -107,6 +107,8 @@ def _spawn(ssh: str) -> subprocess.Popen[str]:
             ssh,
             "-n",
             "-T",
+            # localhost.run rotates host keys; a pinned HostKey would break reconnects.
+            # accept-new still rejects a later key change for a remembered host.
             "-o",
             "StrictHostKeyChecking=accept-new",
             "-o",
@@ -122,7 +124,7 @@ def _spawn(ssh: str) -> subprocess.Popen[str]:
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         stdin=subprocess.DEVNULL,
-        creationflags=subprocess.CREATE_NO_WINDOW,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         text=True,
         encoding="utf-8",
         errors="replace",

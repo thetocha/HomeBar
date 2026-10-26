@@ -9,6 +9,25 @@ from ..telegram_auth import TelegramUser, get_current_user, require_bartender
 
 router = APIRouter(prefix="/api/cocktails", tags=["cocktails"])
 
+NAME_MAX = 120
+DESCRIPTION_MAX = 4000
+
+
+def _validated_name(name: str) -> str:
+    name = name.strip()
+    if not name:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name is required")
+    if len(name) > NAME_MAX:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name is too long")
+    return name
+
+
+def _validated_description(description: str) -> str:
+    description = description.strip()
+    if len(description) > DESCRIPTION_MAX:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Description is too long")
+    return description
+
 
 def to_out(cocktail: Cocktail) -> CocktailOut:
     return CocktailOut(
@@ -55,13 +74,12 @@ async def create_cocktail(
     _: TelegramUser = Depends(require_bartender),
     db: Session = Depends(get_db),
 ) -> CocktailOut:
-    name = name.strip()
-    if not name:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name is required")
+    name = _validated_name(name)
+    description = _validated_description(description)
     filename = await save_photo(photo) if photo and photo.filename else None
     cocktail = Cocktail(
         name=name,
-        description=description.strip(),
+        description=description,
         photo_filename=filename,
         available=available,
     )
@@ -85,12 +103,9 @@ async def update_cocktail(
     if cocktail is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Cocktail not found")
     if name is not None:
-        trimmed = name.strip()
-        if not trimmed:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Name is required")
-        cocktail.name = trimmed
+        cocktail.name = _validated_name(name)
     if description is not None:
-        cocktail.description = description.strip()
+        cocktail.description = _validated_description(description)
     if available is not None:
         cocktail.available = available
     if photo and photo.filename:

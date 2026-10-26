@@ -7,9 +7,8 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from starlette.responses import Response
 from starlette.types import Scope
 
 from .bot import create_bot, dp, setup_menu_button
@@ -118,25 +117,46 @@ if (frontend_dist / "assets").exists():
     )
 
 
+def _safe_frontend_file(full_path: str) -> Path | None:
+    if not full_path:
+        return None
+    dist_root = frontend_dist.resolve()
+    try:
+        candidate = (frontend_dist / full_path).resolve()
+    except (OSError, RuntimeError, ValueError):
+        return None
+    if candidate.is_file() and candidate.is_relative_to(dist_root):
+        return candidate
+    return None
+
+
 @app.get("/{full_path:path}")
 def spa(full_path: str):
     index = frontend_dist / "index.html"
     if not index.exists():
         return {"detail": "Frontend is not built. Run npm run build in frontend/."}
     if full_path:
-        candidate = frontend_dist / full_path
-        if candidate.is_file():
+        candidate = _safe_frontend_file(full_path)
+        if candidate is not None:
             headers = None
             if full_path == "telegram-web-app.js":
                 headers = {"Cache-Control": "public, max-age=86400"}
             return FileResponse(candidate, headers=headers)
+        if Path(full_path).suffix:
+            return Response(status_code=404)
     return FileResponse(index, headers={"Cache-Control": "no-cache"})
 
 
 def run() -> None:
     import uvicorn
 
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True, app_dir=str(Path(__file__).resolve().parents[1]))
+    uvicorn.run(
+        "app.main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=False,
+        app_dir=str(Path(__file__).resolve().parents[1]),
+    )
 
 
 # Keep dp imported so lifespan and tests can see the shared dispatcher module attribute.

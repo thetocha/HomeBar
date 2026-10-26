@@ -26,8 +26,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, { ...init, headers });
   if (response.status === 204) return undefined as T;
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
   if (!response.ok) {
+    let data: { detail?: unknown } | null = null;
+    try {
+      data = text ? (JSON.parse(text) as { detail?: unknown }) : null;
+    } catch {
+      data = null;
+    }
     const detail = data?.detail;
     const message =
       typeof detail === "string"
@@ -37,7 +42,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
           : `Request failed (${response.status})`;
     throw new Error(message);
   }
-  return data as T;
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 export const api = {

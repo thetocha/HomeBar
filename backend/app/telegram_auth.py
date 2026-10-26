@@ -12,6 +12,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from .config import settings
 
 MAX_AUTH_AGE_SECONDS = 24 * 60 * 60
+_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "::ffff:127.0.0.1"}
 
 
 @dataclass
@@ -96,6 +97,23 @@ def _dev_user(user_id: int) -> TelegramUser:
     )
 
 
+def _client_host(request: Request) -> str:
+    return (request.client.host if request.client else "") or ""
+
+
+def _is_loopback(request: Request) -> bool:
+    return _client_host(request) in _LOOPBACK_HOSTS
+
+
+def local_dev_impersonation_allowed(request: Request) -> bool:
+    """Dev user switching is only for a machine-local API, never a public tunnel."""
+    if settings.dev_telegram_user_id is None:
+        return False
+    if settings.auto_tunnel:
+        return False
+    return _is_loopback(request)
+
+
 def get_current_user(
     request: Request,
     x_telegram_init_data: str | None = Header(default=None),
@@ -108,22 +126,19 @@ def get_current_user(
         if scheme.lower() == "tma":
             init_data = remainder.strip()
 
-    if not init_data:
-        query_init = request.query_params.get("initData")
-        if query_init:
-            init_data = query_init
-
     if init_data:
         return verify_init_data(init_data)
 
-    if settings.dev_telegram_user_id is None:
+    if not local_dev_impersonation_allowed(request):
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             "Telegram initData required",
         )
 
-    user_id = x_dev_telegram_user_id or settings.dev_telegram_user_id
-    return _dev_user(user_id)
+    fallback_id = settings.dev_telegram_user_id
+    if fallback_id is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Telegram initData required")
+    return _dev_user(x_dev_telegram_user_id or fallback_id)
 
 
 def require_bartender(user: TelegramUser = Depends(get_current_user)) -> TelegramUser:

@@ -39,7 +39,9 @@ export function renderBartender(root: HTMLElement): void {
     `;
     root.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        tab = btn.dataset.tab as Tab;
+        const next = btn.dataset.tab as Tab;
+        if (next === tab) return;
+        tab = next;
         if (tab !== "new") editing = null;
         paint();
       });
@@ -53,6 +55,7 @@ export function renderBartender(root: HTMLElement): void {
     else if (tab === "orders") void renderOrders(panel);
     else renderForm(panel, editing, () => {
       editing = null;
+      if (tab !== "new") return;
       tab = "menu";
       paint();
     });
@@ -168,8 +171,12 @@ async function renderOrders(panel: HTMLElement): Promise<void> {
         });
       });
     } catch (err) {
-      snapshot = "";
-      panel.innerHTML = `<p class="text-stamp">${escapeHtml(err instanceof Error ? err.message : "Error")}</p>`;
+      const message = err instanceof Error ? err.message : "Error";
+      if (snapshot) {
+        toast(message, "err");
+      } else {
+        panel.innerHTML = `<p class="text-stamp">${escapeHtml(message)}</p>`;
+      }
     }
   };
   await draw();
@@ -210,7 +217,7 @@ function renderForm(panel: HTMLElement, drink: Cocktail | null, onSaved: () => v
       </label>
       <label class="block">
         <span class="text-xs uppercase tracking-[0.18em] text-gold">Description</span>
-        <textarea name="description" rows="4" class="field">${escapeHtml(drink?.description ?? "")}</textarea>
+        <textarea name="description" rows="4" maxlength="4000" class="field">${escapeHtml(drink?.description ?? "")}</textarea>
       </label>
       <label class="flex items-center gap-2 text-sm">
         <input type="checkbox" name="available" ${drink?.available !== false ? "checked" : ""} />

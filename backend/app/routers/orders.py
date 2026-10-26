@@ -27,7 +27,7 @@ async def create_order(
     user: TelegramUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Order:
-    cocktail = db.get(Cocktail, payload.cocktail_id)
+    cocktail = db.get(Cocktail, payload.cocktail_id, with_for_update=True)
     if cocktail is None or not cocktail.available:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "That drink is not available")
     display_name = payload.display_name.strip()
@@ -42,6 +42,11 @@ async def create_order(
         status="pending",
     )
     db.add(order)
+    db.flush()
+    db.refresh(cocktail)
+    if not cocktail.available:
+        db.rollback()
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "That drink is not available")
     db.commit()
     db.refresh(order)
     await notify_bartender(

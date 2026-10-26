@@ -17,8 +17,6 @@ export function stopGuestTimer(): void {
 
 export function renderGuest(root: HTMLElement, me: Me): void {
   stopGuestTimer();
-  const storedName = localStorage.getItem(NAME_KEY);
-  const displayName = storedName?.trim() || me.suggested_display_name;
 
   root.innerHTML = `
     <main class="page-frame">
@@ -43,10 +41,14 @@ export function renderGuest(root: HTMLElement, me: Me): void {
   const sheetEl = root.querySelector("#sheet") as HTMLElement;
   let ordersSnapshot = "";
 
+  function ticketName(): string {
+    return localStorage.getItem(NAME_KEY)?.trim() || me.suggested_display_name;
+  }
+
   async function load(): Promise<void> {
     try {
       const [cocktails, orders] = await Promise.all([api.cocktails(), api.orders()]);
-      renderCatalog(catalogEl, cocktails, displayName, sheetEl, (orders) => {
+      renderCatalog(catalogEl, cocktails, ticketName, sheetEl, (orders) => {
         ordersSnapshot = renderOrders(ordersEl, orders, "");
       });
       ordersSnapshot = renderOrders(ordersEl, orders, ordersSnapshot);
@@ -69,7 +71,7 @@ export function renderGuest(root: HTMLElement, me: Me): void {
 function renderCatalog(
   catalogEl: HTMLElement,
   cocktails: Cocktail[],
-  displayName: string,
+  ticketName: () => string,
   sheetEl: HTMLElement,
   onOrdered: (orders: Order[]) => void,
 ): void {
@@ -98,7 +100,7 @@ function renderCatalog(
       const id = Number(btn.dataset.id);
       const drink = cocktails.find((item) => item.id === id);
       if (drink) {
-        openSheet(sheetEl, drink, displayName, onOrdered);
+        openSheet(sheetEl, drink, ticketName(), onOrdered);
       }
     });
   });
