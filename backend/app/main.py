@@ -149,10 +149,14 @@ def spa(full_path: str):
 def run() -> None:
     import uvicorn
 
+    import os
+
+    host = os.environ.get("UVICORN_HOST", "0.0.0.0")
+    port = int(os.environ.get("UVICORN_PORT", "8000"))
     uvicorn.run(
         "app.main:app",
-        host="127.0.0.1",
-        port=8000,
+        host=host,
+        port=port,
         reload=False,
         app_dir=str(Path(__file__).resolve().parents[1]),
     )
