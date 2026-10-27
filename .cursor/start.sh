@@ -2,7 +2,7 @@
 set -euo pipefail
 
 : "${AUTO_TUNNEL:=1}"
-: "${TUNNEL_PROVIDER:=localhost}"
+: "${TUNNEL_PROVIDER:=cloudflare}"
 : "${BARTENDER_TELEGRAM_ID:=1}"
 : "${DEV_TELEGRAM_USER_ID:=1}"
 : "${UVICORN_HOST:=0.0.0.0}"
