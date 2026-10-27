@@ -20,7 +20,7 @@ from typing import Literal
 
 from aiogram import Bot
 
-from .bot import setup_menu_button
+from .bot import setup_menu_button, setup_webhook
 from .config import ROOT_DIR, settings
 
 logger = logging.getLogger(__name__)
@@ -101,6 +101,8 @@ async def _publish(
         return
     try:
         await setup_menu_button(bot)
+        if settings.use_webhook_updates():
+            await setup_webhook(bot)
     except Exception:
         logger.exception("Could not point the Telegram menu button at %s", url)
 

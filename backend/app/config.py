@@ -1,3 +1,5 @@
+import hashlib
+import os
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,7 +23,25 @@ class Settings(BaseSettings):
     auto_tunnel: bool = True
     # auto | cloudflare | localhost — auto prefers cloudflared when installed.
     tunnel_provider: str = "auto"
+    # polling | webhook | auto — auto uses webhooks on Cloud Agents with AUTO_TUNNEL.
+    bot_updates_mode: str = "auto"
+    webhook_secret: str = ""
     dev_telegram_user_id: int | None = None
+
+    def resolved_webhook_secret(self) -> str:
+        if self.webhook_secret.strip():
+            return self.webhook_secret.strip()
+        if not self.bot_token:
+            return ""
+        return hashlib.sha256(self.bot_token.encode()).hexdigest()[:32]
+
+    def use_webhook_updates(self) -> bool:
+        mode = (self.bot_updates_mode or "auto").strip().lower()
+        if mode == "webhook":
+            return True
+        if mode == "polling":
+            return False
+        return os.environ.get("CURSOR_AGENT") == "1" and self.auto_tunnel
 
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'data' / 'homebar.db').as_posix()}"
     upload_dir: Path = BACKEND_DIR / "data" / "uploads"

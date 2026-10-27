@@ -112,6 +112,28 @@ async def setup_menu_button(active_bot: Bot) -> None:
     logger.info("Telegram menu button set to %s", settings.webapp_url)
 
 
+async def setup_webhook(active_bot: Bot) -> None:
+    if not settings.webapp_url:
+        logger.warning("WEBAPP_URL is empty; skipping Telegram webhook")
+        return
+    secret = settings.resolved_webhook_secret()
+    if not secret:
+        logger.warning("Cannot configure webhook without BOT_TOKEN / WEBHOOK_SECRET")
+        return
+    url = f"{settings.webapp_url.rstrip('/')}/api/telegram/webhook"
+    await active_bot.set_webhook(
+        url=url,
+        secret_token=secret,
+        drop_pending_updates=False,
+        allowed_updates=["message", "callback_query"],
+    )
+    logger.info("Telegram webhook set to %s", url)
+
+
+async def clear_webhook(active_bot: Bot) -> None:
+    await active_bot.delete_webhook(drop_pending_updates=False)
+
+
 def build_order_notify_text(
     *,
     cocktail_name: str,
