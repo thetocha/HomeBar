@@ -44,7 +44,7 @@ For a production-style single process, `npm run build` in `frontend/`, then star
 Telegram Mini Apps only load over HTTPS.
 
 1. Talk to [@BotFather](https://t.me/BotFather): `/newbot`, copy the token into `BOT_TOKEN`.
-2. Put a public HTTPS URL in `WEBAPP_URL`. With `AUTO_TUNNEL=1`, the backend keeps a tunnel alive and updates the bot menu button when the address changes. On Cloud Agents, `TUNNEL_PROVIDER=localhost` (default in `.cursor/start.sh`) uses localhost.run; set `TUNNEL_PROVIDER=cloudflare` if `cloudflared` is installed. For a stable hostname you manage yourself, set `AUTO_TUNNEL=0` and point `WEBAPP_URL` at your own HTTPS reverse proxy.
+2. Put a public HTTPS URL in `WEBAPP_URL`. With `AUTO_TUNNEL=1`, the backend keeps a tunnel alive and updates the bot menu button when the address changes. `auto` uses a Cloudflare quick tunnel when `cloudflared` is installed (one hostname until that process exits) and otherwise localhost.run. localhost.run sometimes replaces the hostname and answers 502 on the previous one, which breaks a Mini App that is already open. For a stable hostname you manage yourself, set `AUTO_TUNNEL=0` and point `WEBAPP_URL` at your own HTTPS reverse proxy.
 3. BotFather: `/mybots` → your bot → **Bot Settings** → **Menu Button** → set URL to the same `WEBAPP_URL`.
 4. On startup the backend also calls `setChatMenuButton` and `/start` shows an **Open menu** Web App keyboard button.
 
