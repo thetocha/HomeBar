@@ -2,6 +2,7 @@
 set -euo pipefail
 
 : "${AUTO_TUNNEL:=1}"
+: "${TUNNEL_PROVIDER:=localhost}"
 : "${BARTENDER_TELEGRAM_ID:=1}"
 : "${DEV_TELEGRAM_USER_ID:=1}"
 : "${UVICORN_HOST:=0.0.0.0}"
@@ -13,6 +14,19 @@ mkdir -p /tmp/homebar
 NPM="$(command -v npm)"
 PYTHON="$ROOT/.venv/bin/python"
 
+ensure_cloudflared() {
+  if command -v cloudflared >/dev/null; then
+    return 0
+  fi
+  local dest="/usr/local/bin/cloudflared"
+  if [[ ! -x "$dest" ]]; then
+    curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64" -o /tmp/cloudflared
+    chmod +x /tmp/cloudflared
+    sudo install -m 755 /tmp/cloudflared "$dest"
+  fi
+}
+ensure_cloudflared
+
 if [[ ! -f "$ROOT/frontend/dist/index.html" ]]; then
   (cd "$ROOT/frontend" && "$NPM" run build)
 fi
@@ -21,6 +35,7 @@ cat > /tmp/homebar/api.sh << LAUNCHER
 #!/usr/bin/env bash
 set -euo pipefail
 export AUTO_TUNNEL=$(printf '%q' "$AUTO_TUNNEL")
+export TUNNEL_PROVIDER=$(printf '%q' "${TUNNEL_PROVIDER:-auto}")
 export BARTENDER_TELEGRAM_ID=$(printf '%q' "$BARTENDER_TELEGRAM_ID")
 export DEV_TELEGRAM_USER_ID=$(printf '%q' "$DEV_TELEGRAM_USER_ID")
 export BOT_TOKEN=$(printf '%q' "${BOT_TOKEN:-}")
