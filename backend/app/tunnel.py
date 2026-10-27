@@ -1,17 +1,22 @@
 """Keep one public HTTPS URL alive and point the Telegram menu button at it.
 
-The tunnel is an SSH port forward to localhost.run (lhr.life). That hostname opens
-on a phone that is not on the computer's VPN. Cloudflare quick tunnels often do not.
-When localhost.run rotates the address, this process updates the bot menu button.
+Prefers Cloudflare quick tunnel (trycloudflare.com) when ``cloudflared`` is on PATH;
+falls back to localhost.run SSH. A watchdog probes the published URL and restarts the
+tunnel when it stops responding (502 / connection errors).
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 import shutil
+import signal
 import subprocess
+import urllib.error
+import urllib.request
+from typing import Literal
 
 from aiogram import Bot
 
@@ -20,8 +25,31 @@ from .config import ROOT_DIR, settings
 
 logger = logging.getLogger(__name__)
 
-URL_RE = re.compile(r"https://[a-z0-9]+\.lhr\.life")
+LOCALHOST_URL_RE = re.compile(r"https://[a-z0-9]+\.lhr\.life")
+CLOUDFLARE_URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
 LOCAL_ORIGIN = "127.0.0.1:8000"
+
+TunnelProvider = Literal["auto", "cloudflare", "localhost"]
+WATCH_INTERVAL_SECONDS = 25
+HEALTH_TIMEOUT_SECONDS = 12
+
+
+def _stop_stray_tunnels() -> None:
+    """Only one tunnel client may forward port 8000."""
+    patterns = (
+        "cloudflared tunnel --url",
+        "ssh -n -T -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30",
+        "nokey@localhost.run",
+    )
+    for pattern in patterns:
+        result = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True, check=False)
+        for token in result.stdout.split():
+            if not token.isdigit():
+                continue
+            try:
+                os.kill(int(token), signal.SIGTERM)
+            except ProcessLookupError:
+                continue
 
 
 def _write_env_url(url: str) -> None:
@@ -47,10 +75,26 @@ def _write_env_url(url: str) -> None:
         logger.warning("Could not write the public URL into .env")
 
 
-async def _publish(url: str, bot: Bot | None) -> None:
-    if settings.webapp_url == url:
+def _verify_public(url: str) -> bool:
+    health = f"{url.rstrip('/')}/api/health"
+    request = urllib.request.Request(health, headers={"User-Agent": "homebar-tunnel-watchdog/1"})
+    try:
+        with urllib.request.urlopen(request, timeout=HEALTH_TIMEOUT_SECONDS) as response:
+            body = response.read(200).decode("utf-8", errors="replace")
+            return response.status == 200 and '"ok"' in body
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        return False
+
+
+async def _publish(
+    url: str,
+    bot: Bot | None,
+    session: dict[str, subprocess.Popen[str] | str | None],
+) -> None:
+    if settings.webapp_url == url and session.get("published_url") == url:
         return
     settings.webapp_url = url
+    session["published_url"] = url
     _write_env_url(url)
     logger.info("Public menu URL: %s", url)
     if bot is None:
@@ -61,6 +105,38 @@ async def _publish(url: str, bot: Bot | None) -> None:
         logger.exception("Could not point the Telegram menu button at %s", url)
 
 
+async def _publish_if_healthy(
+    url: str,
+    bot: Bot | None,
+    session: dict[str, subprocess.Popen[str] | str | None],
+) -> bool:
+    if session.get("last_candidate") == url:
+        return bool(session.get("published_url") == url)
+    session["last_candidate"] = url
+    await asyncio.sleep(5)
+    for attempt in range(15):
+        if await asyncio.to_thread(_verify_public, url):
+            await _publish(url, bot, session)
+            return True
+        if attempt < 14:
+            await asyncio.sleep(2)
+    logger.warning("Tunnel URL never became healthy, skipping publish: %s", url)
+    return False
+
+
+def _resolve_provider() -> TunnelProvider:
+    raw = (settings.tunnel_provider or "auto").strip().lower()
+    if raw in ("cloudflare", "localhost"):
+        return raw  # type: ignore[return-value]
+    # Shared Cloud Agents hit trycloudflare rate limits quickly; localhost.run is
+    # more dependable for a single long-lived SSH session.
+    if os.environ.get("CURSOR_AGENT") == "1":
+        return "localhost"
+    if shutil.which("cloudflared"):
+        return "cloudflare"
+    return "localhost"
+
+
 def _ssh_bin() -> str:
     found = shutil.which("ssh")
     if not found:
@@ -68,47 +144,26 @@ def _ssh_bin() -> str:
     return found
 
 
-async def _one_session(bot: Bot | None) -> None:
-    # Uvicorn's Windows event loop cannot spawn subprocesses, so ssh is
-    # started with Popen and watched from a worker thread.
-    ssh = await asyncio.to_thread(_ssh_bin)
-    proc = await asyncio.to_thread(_spawn, ssh)
-    logger.info("Public tunnel started")
-    try:
-        assert proc.stdout is not None
-        while True:
-            line = await asyncio.to_thread(proc.stdout.readline)
-            if not line:
-                break
-            text = line.rstrip()
-            match = URL_RE.search(text)
-            if match:
-                await _publish(match.group(0), bot)
-            elif text and _worth_logging(text):
-                logger.info("tunnel: %s", text[:300])
-        code = await asyncio.to_thread(proc.wait)
-        logger.warning("Public tunnel exited (%s)", code)
-    finally:
-        if proc.poll() is None:
-            proc.kill()
-        await asyncio.to_thread(proc.wait)
+def _cloudflared_bin() -> str:
+    found = shutil.which("cloudflared")
+    if not found:
+        raise RuntimeError("cloudflared was not found on PATH")
+    return found
 
 
 def _worth_logging(text: str) -> bool:
     lowered = text.lower()
-    if "lhr.life" in lowered:
+    if "lhr.life" in lowered or "trycloudflare.com" in lowered:
         return True
-    return any(word in lowered for word in ("error", "denied", "refused", "warning", "closed", "timeout"))
+    return any(word in lowered for word in ("error", "denied", "refused", "warning", "closed", "timeout", "failed"))
 
 
-def _spawn(ssh: str) -> subprocess.Popen[str]:
+def _spawn_localhost(ssh: str) -> subprocess.Popen[str]:
     return subprocess.Popen(
         [
             ssh,
             "-n",
             "-T",
-            # localhost.run rotates host keys; a pinned HostKey would break reconnects.
-            # accept-new still rejects a later key change for a remembered host.
             "-o",
             "StrictHostKeyChecking=accept-new",
             "-o",
@@ -131,11 +186,131 @@ def _spawn(ssh: str) -> subprocess.Popen[str]:
     )
 
 
+def _spawn_cloudflare(cloudflared: str) -> subprocess.Popen[str]:
+    return subprocess.Popen(
+        [
+            cloudflared,
+            "tunnel",
+            "--url",
+            f"http://{LOCAL_ORIGIN}",
+            "--no-autoupdate",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+
+
+async def _read_tunnel_stream(
+    proc: subprocess.Popen[str],
+    bot: Bot | None,
+    url_pattern: re.Pattern[str],
+    session: dict[str, subprocess.Popen[str] | str | None],
+) -> None:
+    assert proc.stdout is not None
+    while True:
+        line = await asyncio.to_thread(proc.stdout.readline)
+        if not line:
+            break
+        text = line.rstrip()
+        match = url_pattern.search(text)
+        if match:
+            await _publish_if_healthy(match.group(0), bot, session)
+        elif text and _worth_logging(text):
+            logger.info("tunnel: %s", text[:300])
+
+
+async def _localhost_session(
+    bot: Bot | None,
+    session: dict[str, subprocess.Popen[str] | str | None],
+) -> None:
+    ssh = await asyncio.to_thread(_ssh_bin)
+    proc = await asyncio.to_thread(_spawn_localhost, ssh)
+    session["proc"] = proc
+    logger.info("Public tunnel started (localhost.run)")
+    try:
+        await _read_tunnel_stream(proc, bot, LOCALHOST_URL_RE, session)
+        code = await asyncio.to_thread(proc.wait)
+        logger.warning("Public tunnel exited (%s)", code)
+    finally:
+        session["proc"] = None
+        if proc.poll() is None:
+            proc.kill()
+        await asyncio.to_thread(proc.wait)
+
+
+async def _cloudflare_session(
+    bot: Bot | None,
+    session: dict[str, subprocess.Popen[str] | str | None],
+) -> None:
+    cloudflared = await asyncio.to_thread(_cloudflared_bin)
+    proc = await asyncio.to_thread(_spawn_cloudflare, cloudflared)
+    session["proc"] = proc
+    logger.info("Public tunnel started (Cloudflare quick tunnel)")
+    try:
+        await _read_tunnel_stream(proc, bot, CLOUDFLARE_URL_RE, session)
+        code = await asyncio.to_thread(proc.wait)
+        logger.warning("Public tunnel exited (%s)", code)
+    finally:
+        session["proc"] = None
+        if proc.poll() is None:
+            proc.kill()
+        await asyncio.to_thread(proc.wait)
+
+
+async def _watchdog(session: dict[str, subprocess.Popen[str] | str | None]) -> None:
+    while True:
+        await asyncio.sleep(WATCH_INTERVAL_SECONDS)
+        url_raw = session.get("published_url")
+        if not isinstance(url_raw, str) or not url_raw.strip():
+            continue
+        url = url_raw.strip()
+        healthy = await asyncio.to_thread(_verify_public, url)
+        if healthy:
+            continue
+        logger.warning("Public URL failed health check, restarting tunnel: %s", url)
+        proc = session.get("proc")
+        if isinstance(proc, subprocess.Popen) and proc.poll() is None:
+            proc.kill()
+            try:
+                await asyncio.to_thread(proc.wait, timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+        session["published_url"] = None
+        return
+
+
+async def _one_cycle(bot: Bot | None) -> None:
+    await asyncio.to_thread(_stop_stray_tunnels)
+    await asyncio.sleep(1)
+    provider = _resolve_provider()
+    session: dict[str, subprocess.Popen[str] | str | None] = {
+        "proc": None,
+        "published_url": None,
+        "last_candidate": None,
+    }
+    session_factory = _cloudflare_session if provider == "cloudflare" else _localhost_session
+    session_task = asyncio.create_task(session_factory(bot, session))
+    watchdog_task = asyncio.create_task(_watchdog(session))
+    try:
+        await session_task
+    finally:
+        watchdog_task.cancel()
+        try:
+            await watchdog_task
+        except asyncio.CancelledError:
+            pass
+
+
 async def run_tunnel(bot: Bot | None) -> None:
     delay = 3
     while True:
         try:
-            await _one_session(bot)
+            await _one_cycle(bot)
             delay = 3
         except asyncio.CancelledError:
             raise

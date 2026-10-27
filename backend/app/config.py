@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     # When true, the backend starts its own Cloudflare tunnel and keeps the
     # Telegram menu button pointed at whatever address that tunnel has.
     auto_tunnel: bool = True
+    # auto | cloudflare | localhost — auto prefers cloudflared when installed.
+    tunnel_provider: str = "auto"
     dev_telegram_user_id: int | None = None
 
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'data' / 'homebar.db').as_posix()}"
