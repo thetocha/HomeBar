@@ -33,7 +33,7 @@ export function renderGuest(root: HTMLElement, me: Me): void {
         <div class="smoke-line mx-auto my-3"></div>
         <p class="font-serif text-lg italic leading-snug text-ink/70">Закажите, что душа пожелает.</p>
       </header>
-      <section id="catalog" class="mt-8 grid grid-cols-2 gap-5"></section>
+      <section id="catalog" class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-5"></section>
       <section class="mt-10">
         <h2 class="bar-heading text-center">Ваши заказы</h2>
         <p class="flourish my-3">✦</p>
@@ -123,10 +123,10 @@ function renderCatalog(
         ? photoImg(drink.photo_url, drink.name, "aspect-square w-full object-cover")
         : `<div class="flex aspect-square items-center justify-center bg-[#efe4cc] font-serif text-xl italic text-ink/40">Нет фото</div>`;
       return `
-        <button type="button" data-id="${drink.id}" class="rotate-card polaroid text-left ${index % 2 ? "mt-3" : ""}">
+        <button type="button" data-id="${drink.id}" class="rotate-card polaroid flex w-full flex-col text-left ${index % 2 ? "sm:mt-3" : ""}">
           ${photo}
           <figcaption class="mt-3 px-1 text-center font-serif text-xl italic leading-tight">${escapeHtml(drink.name)}</figcaption>
-          <p class="mt-1 line-clamp-2 px-1 text-center text-xs text-ink/60">${escapeHtml(drink.description || "")}</p>
+          <p class="drink-card-desc mt-2 px-1 text-center">${escapeHtml(drink.description || "")}</p>
         </button>
       `;
     })
