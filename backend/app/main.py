@@ -11,11 +11,11 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.types import Scope
 
-from .bot import create_bot, dp, setup_menu_button
+from .bot import create_bot, dp, setup_menu_button, setup_webhook
 from .config import ROOT_DIR, settings
 from .database import init_db
 from .photos import optimize_stored_photos
-from .routers import cocktails, me, orders
+from .routers import cocktails, me, orders, telegram_webhook
 from .tunnel import run_tunnel
 
 logging.basicConfig(level=logging.INFO)
@@ -32,12 +32,22 @@ async def lifespan(app: FastAPI):
     active_bot, dispatcher = create_bot()
     polling_task: asyncio.Task | None = None
     tunnel_task: asyncio.Task | None = None
+    use_webhook = settings.use_webhook_updates()
     if active_bot and dispatcher:
-        polling_task = asyncio.create_task(dispatcher.start_polling(active_bot))
-        logger.info("aiogram polling started")
+        if use_webhook:
+            logger.info("Telegram webhook mode (no long polling)")
+            if settings.webapp_url:
+                try:
+                    await setup_webhook(active_bot)
+                    await setup_menu_button(active_bot)
+                except Exception:
+                    logger.exception("Could not set Telegram webhook or menu button")
+        else:
+            polling_task = asyncio.create_task(dispatcher.start_polling(active_bot))
+            logger.info("aiogram polling started")
     if settings.auto_tunnel:
         tunnel_task = asyncio.create_task(run_tunnel(active_bot))
-    elif active_bot:
+    elif active_bot and not use_webhook:
         try:
             await setup_menu_button(active_bot)
         except Exception:
@@ -78,6 +88,7 @@ app.add_middleware(
 app.include_router(me.router)
 app.include_router(cocktails.router)
 app.include_router(orders.router)
+app.include_router(telegram_webhook.router)
 
 
 @app.get("/api/health")

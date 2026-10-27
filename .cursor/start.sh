@@ -36,6 +36,7 @@ cat > /tmp/homebar/api.sh << LAUNCHER
 set -euo pipefail
 export AUTO_TUNNEL=$(printf '%q' "$AUTO_TUNNEL")
 export TUNNEL_PROVIDER=$(printf '%q' "${TUNNEL_PROVIDER:-auto}")
+export BOT_UPDATES_MODE=$(printf '%q' "${BOT_UPDATES_MODE:-auto}")
 export BARTENDER_TELEGRAM_ID=$(printf '%q' "$BARTENDER_TELEGRAM_ID")
 export DEV_TELEGRAM_USER_ID=$(printf '%q' "$DEV_TELEGRAM_USER_ID")
 export BOT_TOKEN=$(printf '%q' "${BOT_TOKEN:-}")
