@@ -20,8 +20,8 @@ export function toast(message: string, kind: "ok" | "err" = "ok"): void {
   document.getElementById("toast")?.remove();
   const el = document.createElement("div");
   el.id = "toast";
-  el.className = `fixed left-1/2 top-6 z-[60] -translate-x-1/2 border px-4 py-2 text-sm shadow-polaroid ${
-    kind === "ok" ? "border-gold bg-[#fffaf0] text-ink" : "border-stamp bg-white text-stamp"
+  el.className = `fixed left-1/2 top-6 z-[60] -translate-x-1/2 border bg-[#f7f1e3] px-4 py-2 font-serif text-lg italic shadow-polaroid ${
+    kind === "ok" ? "border-gold text-ink" : "border-stamp text-stamp"
   }`;
   el.textContent = message;
   document.body.appendChild(el);

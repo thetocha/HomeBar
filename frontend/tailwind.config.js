@@ -4,19 +4,20 @@ export default {
   theme: {
     extend: {
       colors: {
-        cream: "#f4ead5",
-        ink: "#1c1610",
-        rule: "#c4a56a",
-        stamp: "#6b2c1a",
-        gold: "#b08d57",
+        cream: "#f4ead8",
+        ink: "#24180f",
+        rule: "#c4a35a",
+        stamp: "#9c2436",
+        gold: "#c4a35a",
+        smoke: "#8fd4ea",
       },
       fontFamily: {
-        serif: ["Palatino Linotype", "Palatino", "Georgia", "serif"],
+        serif: ["Cormorant Garamond", "Palatino Linotype", "Palatino", "Georgia", "serif"],
         sans: ["system-ui", "Segoe UI", "sans-serif"],
-        script: ["Palatino Linotype", "Georgia", "cursive"],
+        display: ["Cinzel", "Palatino Linotype", "Palatino", "Georgia", "serif"],
       },
       boxShadow: {
-        polaroid: "0 12px 22px rgba(40, 24, 8, 0.16)",
+        polaroid: "0 14px 28px rgba(0, 0, 0, 0.45)",
       },
     },
   },

@@ -24,12 +24,12 @@ export function renderBartender(root: HTMLElement): void {
     stopOrdersTimer();
     root.innerHTML = `
       <main class="page-frame">
-        <header class="text-center">
+        <header class="jar-label mb-6 text-center">
           <p class="kicker">Смена</p>
-          <h1 class="mt-1 font-serif text-4xl italic">Djinn Antonic</h1>
-          <p class="flourish my-4">✦</p>
+          <h1 class="jar-title mt-2">Djinn Antonic</h1>
+          <div class="smoke-line mx-auto mt-3"></div>
         </header>
-        <nav class="mb-6 grid grid-cols-3 overflow-hidden border border-gold">
+        <nav class="mb-6 grid grid-cols-3 overflow-hidden border border-gold/80 bg-black/25">
           ${tabButton("orders", "Заказы", tab)}
           ${tabButton("menu", "Меню", tab)}
           ${tabButton("new", editing ? "Правка" : "Новый", tab)}
@@ -65,16 +65,16 @@ export function renderBartender(root: HTMLElement): void {
 }
 
 function tabButton(id: Tab, label: string, current: Tab): string {
-  const active = id === current ? "bg-ink text-cream" : "bg-[#fffaf0]/70 text-ink";
-  return `<button type="button" data-tab="${id}" class="${active} px-2 py-2.5 text-xs uppercase tracking-[0.16em]">${label}</button>`;
+  const active = id === current ? "bg-stamp text-cream" : "bg-transparent text-cream/80";
+  return `<button type="button" data-tab="${id}" class="${active} px-2 py-2.5 font-display text-[11px] uppercase tracking-[0.14em]">${label}</button>`;
 }
 
 async function renderMenu(panel: HTMLElement, onEdit: (drink: Cocktail) => void): Promise<void> {
-  panel.innerHTML = `<p class="text-sm text-ink/55">Загрузка карточек…</p>`;
+  panel.innerHTML = `<p class="bar-muted font-serif text-lg italic">Загрузка карточек…</p>`;
   try {
     const drinks = await api.cocktails();
     if (!drinks.length) {
-      panel.innerHTML = `<p class="text-sm text-ink/55">Карточек пока нет. Добавьте напиток.</p>`;
+      panel.innerHTML = `<p class="bar-muted font-serif text-lg italic">Карточек пока нет. Добавьте напиток.</p>`;
       return;
     }
     panel.innerHTML = `<div class="space-y-4">${drinks.map(menuCard).join("")}</div>`;
@@ -120,13 +120,13 @@ async function renderMenu(panel: HTMLElement, onEdit: (drink: Cocktail) => void)
 function menuCard(drink: Cocktail): string {
   const photo = drink.photo_url
     ? photoImg(drink.photo_url, "", "h-20 w-20 object-cover")
-    : `<div class="flex h-20 w-20 items-center justify-center bg-[#efe6d2] text-[10px] uppercase tracking-widest text-ink/40">Нет фото</div>`;
+    : `<div class="flex h-20 w-20 items-center justify-center bg-[#efe4cc] font-serif text-sm italic text-ink/40">Нет фото</div>`;
   return `
     <article class="ticket flex gap-3 p-3">
       <div class="polaroid !p-1 !pb-3">${photo}</div>
       <div class="min-w-0 flex-1">
         <div class="flex items-baseline justify-between gap-2">
-          <h3 class="truncate font-serif text-xl italic">${escapeHtml(drink.name)}</h3>
+          <h3 class="truncate font-serif text-2xl italic leading-none">${escapeHtml(drink.name)}</h3>
           <span class="seal ${drink.available ? "seal-on" : "seal-out"}">${
             drink.available ? "В меню" : "Снят"
           }</span>
@@ -153,7 +153,7 @@ async function renderOrders(panel: HTMLElement): Promise<void> {
       if (next === snapshot) return;
       snapshot = next;
       if (!orders.length) {
-        panel.innerHTML = `<p class="text-sm text-ink/55">Заказов пока нет.</p>`;
+        panel.innerHTML = `<p class="bar-muted font-serif text-lg italic">Заказов пока нет.</p>`;
         return;
       }
       panel.innerHTML = `<div class="space-y-3">${orders.map(orderCard).join("")}</div>`;
@@ -196,8 +196,8 @@ function orderCard(order: Order): string {
     <article class="ticket px-3 py-3">
       <div class="flex items-start justify-between gap-3">
         <div>
-          <p class="text-[10px] uppercase tracking-[0.18em] text-stamp">${STATUS_LABEL[order.status]} · #${order.id}</p>
-          <h3 class="font-serif text-xl italic">${escapeHtml(order.cocktail_name)}</h3>
+          <p class="font-display text-[10px] uppercase tracking-[0.18em] text-stamp">${STATUS_LABEL[order.status]} · #${order.id}</p>
+          <h3 class="font-serif text-2xl italic leading-none">${escapeHtml(order.cocktail_name)}</h3>
           <p class="text-sm">${escapeHtml(order.display_name)} <span class="text-ink/50">(${escapeHtml(handle)})</span></p>
           <p class="text-xs text-ink/50">${formatTime(order.created_at)}</p>
         </div>
@@ -212,24 +212,24 @@ function renderForm(panel: HTMLElement, drink: Cocktail | null, onSaved: () => v
   panel.innerHTML = `
     <form id="drink-form" class="space-y-4">
       <label class="block">
-        <span class="text-xs uppercase tracking-[0.18em] text-gold">Название</span>
-        <input name="name" required maxlength="120" class="field" value="${escapeHtml(drink?.name ?? "")}" />
+        <span class="font-display text-xs uppercase tracking-[0.18em] text-gold">Название</span>
+        <input name="name" required maxlength="120" class="field font-serif text-lg" value="${escapeHtml(drink?.name ?? "")}" />
       </label>
       <label class="block">
-        <span class="text-xs uppercase tracking-[0.18em] text-gold">Описание</span>
-        <textarea name="description" rows="4" maxlength="4000" class="field">${escapeHtml(drink?.description ?? "")}</textarea>
+        <span class="font-display text-xs uppercase tracking-[0.18em] text-gold">Описание</span>
+        <textarea name="description" rows="4" maxlength="4000" class="field font-serif text-lg">${escapeHtml(drink?.description ?? "")}</textarea>
       </label>
-      <label class="flex items-center gap-2 text-sm">
+      <label class="flex items-center gap-2 font-serif text-lg">
         <input type="checkbox" name="available" ${drink?.available !== false ? "checked" : ""} />
         В меню
       </label>
       <label class="block">
-        <span class="text-xs uppercase tracking-[0.18em] text-gold">Полароид</span>
+        <span class="font-display text-xs uppercase tracking-[0.18em] text-gold">Полароид</span>
         <input name="photo" type="file" accept="image/*" class="mt-2 block w-full text-sm" />
       </label>
       ${
         drink?.photo_url
-          ? photoImg(drink.photo_url, "", "h-32 w-32 object-cover shadow-polaroid", false)
+          ? `<div class="polaroid inline-block !p-1 !pb-3">${photoImg(drink.photo_url, "", "h-32 w-32 object-cover", false)}</div>`
           : ""
       }
       <button type="submit" class="stamp-btn w-full">${isEdit ? "Сохранить карточку" : "Добавить в меню"}</button>

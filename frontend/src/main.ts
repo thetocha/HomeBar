@@ -15,11 +15,13 @@ void boot(app);
 
 async function boot(root: HTMLElement): Promise<void> {
   root.innerHTML = `
-    <main class="page-frame px-6 py-16 text-center">
-      <p class="kicker">Сегодня</p>
-      <h1 class="mt-1 font-serif text-4xl italic">Djinn Antonic</h1>
-      <p class="flourish my-4">✦</p>
-      <p class="text-sm text-ink/60">Открываем книгу…</p>
+    <main class="page-frame px-2 py-10 text-center">
+      <header class="jar-label">
+        <p class="kicker">Сегодня</p>
+        <h1 class="jar-title mt-2">Djinn Antonic</h1>
+        <div class="smoke-line mx-auto my-3"></div>
+        <p class="font-serif text-lg italic text-ink/70">Открываем бар…</p>
+      </header>
     </main>
   `;
   try {
@@ -27,10 +29,13 @@ async function boot(root: HTMLElement): Promise<void> {
     renderApp(root, me);
   } catch (err) {
     root.innerHTML = `
-      <main class="page-frame px-6 py-16 text-center">
-        <h1 class="font-serif text-3xl italic">Djinn Antonic</h1>
-        <p class="mt-4 text-sm text-stamp">${err instanceof Error ? err.message : "Не удалось начать"}</p>
-        <p class="mt-3 text-sm text-ink/60">Откройте это приложение из Telegram или задайте DEV_TELEGRAM_USER_ID для локального просмотра.</p>
+      <main class="page-frame px-2 py-10 text-center">
+        <header class="jar-label">
+          <h1 class="jar-title">Djinn Antonic</h1>
+          <div class="smoke-line mx-auto my-3"></div>
+          <p class="font-serif text-lg italic text-stamp">${err instanceof Error ? err.message : "Не удалось начать"}</p>
+        </header>
+        <p class="bar-muted mt-4 font-serif text-lg italic">Откройте это приложение из Telegram или задайте DEV_TELEGRAM_USER_ID для локального просмотра.</p>
       </main>
     `;
   }
@@ -58,7 +63,7 @@ function renderApp(root: HTMLElement, me: Me): void {
 
 function devBar(me: Me, onSwitch: (id: number) => void): HTMLElement {
   const bar = document.createElement("div");
-  bar.className = "border-b border-gold/50 bg-[#f3e6c8] px-3 py-2 text-center text-xs tracking-wide";
+  bar.className = "border-b border-gold/40 bg-[#140e0a]/80 px-3 py-2 text-center font-display text-[11px] uppercase tracking-[0.14em] text-cream";
   const bartenderId = me.bartender_telegram_id || 1;
   bar.innerHTML = `
     Локальный просмотр · сейчас вы <b>${me.is_bartender ? "бармен" : "гость"}</b>

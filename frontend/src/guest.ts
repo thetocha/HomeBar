@@ -28,14 +28,14 @@ export function renderGuest(root: HTMLElement, me: Me): void {
 
   root.innerHTML = `
     <main class="page-frame">
-      <header class="text-center">
-        <h1 class="font-serif text-[2.6rem] italic leading-none">Djinn Antonic</h1>
-        <p class="flourish my-4">✦</p>
-        <p class="text-sm italic text-ink/70">Закажите, что душа пожелает.</p>
+      <header class="jar-label text-center">
+        <h1 class="jar-title">Djinn Antonic</h1>
+        <div class="smoke-line mx-auto my-3"></div>
+        <p class="font-serif text-lg italic leading-snug text-ink/70">Закажите, что душа пожелает.</p>
       </header>
       <section id="catalog" class="mt-8 grid grid-cols-2 gap-5"></section>
       <section class="mt-10">
-        <h2 class="text-center font-serif text-2xl italic">Ваши заказы</h2>
+        <h2 class="bar-heading text-center">Ваши заказы</h2>
         <p class="flourish my-3">✦</p>
         <div id="orders" class="space-y-3"></div>
       </section>
@@ -75,14 +75,14 @@ function renderNamePrompt(root: HTMLElement, me: Me, onSaved: () => void): void 
   const preset = me.suggested_display_name.trim();
   root.innerHTML = `
     <main class="page-frame">
-      <header class="text-center">
-        <h1 class="font-serif text-[2.6rem] italic leading-none">Djinn Antonic</h1>
-        <p class="flourish my-4">✦</p>
-        <p class="text-sm italic text-ink/70">Как к вам обращаться?</p>
+      <header class="jar-label text-center">
+        <h1 class="jar-title">Djinn Antonic</h1>
+        <div class="smoke-line mx-auto my-3"></div>
+        <p class="font-serif text-lg italic text-ink/70">Как к вам обращаться?</p>
       </header>
-      <label class="mt-8 block text-xs uppercase tracking-[0.2em] text-gold" for="nickname">Имя на чеке</label>
-      <input id="nickname" class="field" value="${escapeHtml(preset)}" maxlength="80" autocomplete="nickname" />
-      <p class="mt-3 text-center text-xs text-ink/55">Один раз — и все следующие заказы пойдут на это имя.</p>
+      <label class="mt-8 block font-display text-xs uppercase tracking-[0.2em] text-gold" for="nickname">Имя на чеке</label>
+      <input id="nickname" class="field font-serif text-lg" value="${escapeHtml(preset)}" maxlength="80" autocomplete="nickname" />
+      <p class="bar-muted mt-3 text-center font-serif text-base italic">Один раз — и все следующие заказы пойдут на это имя.</p>
       <button id="save-name" type="button" class="stamp-btn mt-5 w-full">Продолжить</button>
     </main>
   `;
@@ -114,18 +114,18 @@ function renderCatalog(
 ): void {
   if (!cocktails.length) {
     catalogEl.className = "mt-8";
-    catalogEl.innerHTML = `<p class="text-center text-ink/60">Бармен ещё составляет вечернее меню.</p>`;
+    catalogEl.innerHTML = `<p class="bar-muted text-center font-serif text-lg italic">Бармен ещё составляет вечернее меню.</p>`;
     return;
   }
   catalogEl.innerHTML = cocktails
     .map((drink, index) => {
       const photo = drink.photo_url
         ? photoImg(drink.photo_url, drink.name, "aspect-square w-full object-cover")
-        : `<div class="flex aspect-square items-center justify-center bg-[#efe6d2] font-serif text-ink/40">Нет фото</div>`;
+        : `<div class="flex aspect-square items-center justify-center bg-[#efe4cc] font-serif text-xl italic text-ink/40">Нет фото</div>`;
       return `
         <button type="button" data-id="${drink.id}" class="rotate-card polaroid text-left ${index % 2 ? "mt-3" : ""}">
           ${photo}
-          <figcaption class="mt-3 px-1 text-center font-serif text-lg leading-tight">${escapeHtml(drink.name)}</figcaption>
+          <figcaption class="mt-3 px-1 text-center font-serif text-xl italic leading-tight">${escapeHtml(drink.name)}</figcaption>
           <p class="mt-1 line-clamp-2 px-1 text-center text-xs text-ink/60">${escapeHtml(drink.description || "")}</p>
         </button>
       `;
@@ -147,7 +147,7 @@ function renderOrders(ordersEl: HTMLElement, orders: Order[], snapshot: string):
   const next = JSON.stringify(orders);
   if (next === snapshot) return snapshot;
   if (!orders.length) {
-    ordersEl.innerHTML = `<p class="text-sm text-ink/55">Пока ничего не заказано.</p>`;
+    ordersEl.innerHTML = `<p class="bar-muted font-serif text-lg italic">Пока ничего не заказано.</p>`;
     return next;
   }
   ordersEl.innerHTML = orders
@@ -155,7 +155,7 @@ function renderOrders(ordersEl: HTMLElement, orders: Order[], snapshot: string):
       (order) => `
         <article class="ticket px-3 py-3">
           <div class="flex items-baseline justify-between gap-3">
-            <h3 class="font-serif text-lg italic">${escapeHtml(order.cocktail_name)}</h3>
+            <h3 class="font-serif text-xl italic">${escapeHtml(order.cocktail_name)}</h3>
             <span class="seal seal-out">${STATUS_LABEL[order.status]}</span>
           </div>
           <p class="mt-1 text-xs text-ink/55">${formatTime(order.created_at)} · для ${escapeHtml(order.display_name)}</p>
@@ -179,7 +179,7 @@ function openSheet(
     <div class="sheet-panel">
       <div class="mx-auto mb-3 h-1 w-12 rounded-full bg-rule"></div>
       ${photo ? `<div class="polaroid mx-auto max-w-xs">${photo}</div>` : ""}
-      <h2 class="mt-4 text-center font-serif text-3xl italic">${escapeHtml(drink.name)}</h2>
+      <h2 class="mt-4 text-center font-serif text-4xl italic leading-none">${escapeHtml(drink.name)}</h2>
       <p class="mt-2 whitespace-pre-wrap text-center text-sm leading-relaxed text-ink/75">${escapeHtml(drink.description || "Без дегустационных заметок.")}</p>
       <button id="order-btn" type="button" class="stamp-btn mt-5 w-full">Заказать</button>
     </div>
