@@ -114,14 +114,16 @@ async def _publish_if_healthy(
 ) -> bool:
     if session.get("last_candidate") == url:
         return bool(session.get("published_url") == url)
+    if session.get("published_url") == url:
+        return True
     session["last_candidate"] = url
-    await asyncio.sleep(5)
-    for attempt in range(15):
+    await asyncio.sleep(3)
+    for attempt in range(40):
         if await asyncio.to_thread(_verify_public, url):
             await _publish(url, bot, session)
             return True
-        if attempt < 14:
-            await asyncio.sleep(2)
+        if attempt < 39:
+            await asyncio.sleep(3)
     logger.warning("Tunnel URL never became healthy, skipping publish: %s", url)
     return False
 
