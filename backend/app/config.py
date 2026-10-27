@@ -8,6 +8,24 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 
+def _on_cloud_agent() -> bool:
+    """True on a Cloud Agent VM, including uvicorn started from tmux.
+
+    ``CURSOR_AGENT`` is set on the agent shell but is often missing from the
+    tmux server environment that launches the API. The socket and secret-list
+    variables are present on that process.
+    """
+    if os.environ.get("CURSOR_AGENT") == "1":
+        return True
+    if os.environ.get("CURSOR_AGENT_SOCKET"):
+        return True
+    if os.environ.get("CLOUD_AGENT_ALL_SECRET_NAMES") or os.environ.get(
+        "CLOUD_AGENT_INJECTED_SECRET_NAMES"
+    ):
+        return True
+    return False
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=str(ROOT_DIR / ".env"),
@@ -41,7 +59,7 @@ class Settings(BaseSettings):
             return True
         if mode == "polling":
             return False
-        return os.environ.get("CURSOR_AGENT") == "1" and self.auto_tunnel
+        return _on_cloud_agent() and self.auto_tunnel
 
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'data' / 'homebar.db').as_posix()}"
     upload_dir: Path = BACKEND_DIR / "data" / "uploads"

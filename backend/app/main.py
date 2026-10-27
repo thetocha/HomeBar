@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.types import Scope
 
-from .bot import create_bot, dp, setup_menu_button, setup_webhook
+from .bot import clear_webhook, create_bot, dp, setup_menu_button, setup_webhook
 from .config import ROOT_DIR, settings
 from .database import init_db
 from .photos import optimize_stored_photos
@@ -36,13 +36,21 @@ async def lifespan(app: FastAPI):
     if active_bot and dispatcher:
         if use_webhook:
             logger.info("Telegram webhook mode (no long polling)")
-            if settings.webapp_url:
+            # AUTO_TUNNEL replaces WEBAPP_URL after the listener is up. Registering
+            # the previous host first makes Telegram back off on 502s.
+            if settings.auto_tunnel:
+                logger.info("Webhook will be registered when the public tunnel is ready")
+            elif settings.webapp_url:
                 try:
                     await setup_webhook(active_bot)
                     await setup_menu_button(active_bot)
                 except Exception:
                     logger.exception("Could not set Telegram webhook or menu button")
         else:
+            try:
+                await clear_webhook(active_bot)
+            except Exception:
+                logger.exception("Could not delete Telegram webhook before polling")
             polling_task = asyncio.create_task(dispatcher.start_polling(active_bot))
             logger.info("aiogram polling started")
     if settings.auto_tunnel:
