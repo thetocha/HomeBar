@@ -38,18 +38,58 @@ def _stop_stray_tunnels() -> None:
     """Only one tunnel client may forward port 8000."""
     patterns = (
         "cloudflared tunnel --url",
-        "ssh -n -T -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30",
+        "StrictHostKeyChecking=accept-new",
         "nokey@localhost.run",
     )
+    try:
+        pids = _pids_matching(patterns)
+    except (OSError, subprocess.TimeoutExpired):
+        logger.warning("Could not list tunnel processes; continuing")
+        return
+    for pid in pids:
+        if pid == os.getpid():
+            continue
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            continue
+        except PermissionError:
+            logger.warning("Could not stop tunnel process %s", pid)
+
+
+def _pids_matching(patterns: tuple[str, ...]) -> list[int]:
+    if os.name == "nt":
+        return _pids_matching_windows(patterns)
+    pids: list[int] = []
     for pattern in patterns:
         result = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True, check=False)
         for token in result.stdout.split():
-            if not token.isdigit():
-                continue
-            try:
-                os.kill(int(token), signal.SIGTERM)
-            except ProcessLookupError:
-                continue
+            if token.isdigit():
+                pids.append(int(token))
+    return pids
+
+
+def _pids_matching_windows(patterns: tuple[str, ...]) -> list[int]:
+    script = (
+        "Get-CimInstance Win32_Process | "
+        "Where-Object { $_.Name -match '^(ssh|cloudflared)(\\.exe)?$' } | "
+        "ForEach-Object { '{0}`t{1}' -f $_.ProcessId, $_.CommandLine }"
+    )
+    result = subprocess.run(
+        ["powershell", "-NoProfile", "-Command", script],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=20,
+    )
+    pids: list[int] = []
+    for line in result.stdout.splitlines():
+        pid_text, _, command = line.partition("\t")
+        if not pid_text.strip().isdigit():
+            continue
+        if any(pattern in command for pattern in patterns):
+            pids.append(int(pid_text.strip()))
+    return pids
 
 
 def _write_env_url(url: str) -> None:
